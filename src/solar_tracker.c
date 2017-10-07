@@ -8,18 +8,17 @@
 // The rest of fuses are left as default.
 __code uint16_t __at (_CONFIG) __configword = _INTRC_OSC_NOCLKOUT & _IESO_ON & _WDT_OFF & _MCLRE_OFF & _BOREN_OFF;//&& _LVP_OFF;
 
-/*#define LED_PORT PORTCbits.RC2*/
-/*#define LED_TRIS TRISCbits.TRISC2*/
+#define LDR1_PORT PORTAbits.RA0
+#define LDR1_TRIS TRISAbits.TRISA0
 
-#define LED_FULL_PORT PORTC
-#define LED_FULL_TRIS TRISC
+#define LDR2_PORT PORTAbits.RA1
+#define LDR2_TRIS TRISAbits.TRISA1
 
-#define SW_PORT PORTAbits.RA3
-#define SW_TRIS TRISAbits.TRISA3
+#define LDR3_PORT PORTAbits.RA2
+#define LDR3_TRIS TRISAbits.TRISA2
 
-#define RES_PORT PORTAbits.RA0
-#define RES_TRIS TRISAbits.TRISA0
-
+#define LDR4_PORT PORTAbits.RA3
+#define LDR4_TRIS TRISAbits.TRISA3
 
 // Uncalibrated delay, just waits a number of for-loop iterations
 void delay(uint16_t iterations){
@@ -30,39 +29,55 @@ void delay(uint16_t iterations){
     }
 }
 
-void update_lights(char value){
-    LED_FULL_PORT = value;
-}
 
+/**
+ * Read all 4 LDRs into values
+ */
+void read_ldrs(uint16_t *values) {
 
-void main(void){
-    int value;
-
-    LED_FULL_TRIS = 0;
-    LED_FULL_PORT = 0x00;
-
-    SW_PORT = 0;
-    SW_TRIS = 1;
-
-    RES_PORT = 0;
-    RES_TRIS = 1;
-
-    ANSEL = 0b00000001;
     ADCON0 = 0b10000000;   // select right justify result. ADC port channel 0
     ADCON1 = 0b00110000;   // Select the FRC for 8 Mhz
     ADCON0bits.ADON =1;       // turn on the A2D conversion module
 
+    ANSEL = 0b00000001;
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO);
+    values[0]=((unsigned)ADRESH<<4)+ADRESL;
+    delay(100);
 
-    //Flash to show booted
-    LED_FULL_PORT = 0xff;
-    delay(8000);
-    LED_FULL_PORT = 0x00;
+    ANSEL = 0b00000010;
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO);
+    values[1]=((unsigned)ADRESH<<4)+ADRESL;
+    delay(100);
+
+    ANSEL = 0b00000100;
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO);
+    values[2]=((unsigned)ADRESH<<4)+ADRESL;
+    delay(100);
+
+    ANSEL = 0b00001000;
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO);
+    values[3]=((unsigned)ADRESH<<4)+ADRESL;
+}
+
+
+void main(void){
+    uint16_t ldrs[4];
+
+    // Initialize the analog ports for LDRS as inputs
+    LDR1_PORT = 0;
+    LDR1_TRIS = 1;
+    LDR2_PORT = 0;
+    LDR2_TRIS = 1;
+    LDR3_PORT = 0;
+    LDR3_TRIS = 1;
+    LDR4_PORT = 0;
+    LDR4_TRIS = 1;
 
     while(1) {
-
-        ADCON0bits.GO = 1;
-        while(ADCON0bits.GO);
-        value=((unsigned)ADRESH<<4)+ADRESL;
-        update_lights(ADRESH);
+        read_ldrs(ldrs);
     }
 }
